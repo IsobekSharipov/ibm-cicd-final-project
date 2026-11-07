@@ -1,0 +1,41 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: cleanup
+  labels:
+    app.kubernetes.io/part-of: ibm-cicd-final-project
+spec:
+  description: Remove generated Python files before the next pipeline stage.
+  workspaces:
+    - name: source
+  steps:
+    - name: clean
+      image: python:3.11-slim
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        find . -type d -name __pycache__ -prune -exec rm -rf {} +
+        find . -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+        rm -rf .pytest_cache .coverage htmlcov
+
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: unit-tests
+  labels:
+    app.kubernetes.io/part-of: ibm-cicd-final-project
+spec:
+  description: Install dependencies and run Python unit tests using nose2.
+  workspaces:
+    - name: source
+  steps:
+    - name: test
+      image: python:3.11-slim
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        python -m pip install --no-cache-dir -r requirements.txt
+        python -m nose2 -v
